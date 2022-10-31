@@ -38,7 +38,6 @@ type emitter struct {
 	tracer        tracer.Tracer `gone:"gone-tracer"`
 	tool          AllCompleter  `gone:"gone-emitter-tool"`
 	consumers     []Consumer    `gone:"*"`
-	senders       []Sender      `gone:"*"`
 
 	eventHandlerMap map[string]*eventHandler
 }
@@ -177,10 +176,6 @@ func (r *emitter) checkEventType(evtType reflect.Type) {
 	default:
 		panic("handler parameter only support struct or struct pointer")
 	}
-}
-
-func (r *emitter) HasSender() bool {
-	return len(r.senders) > 1
 }
 
 // 处理订阅关系

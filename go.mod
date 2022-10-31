@@ -3,7 +3,7 @@ module github.com/gone-io/emitter
 go 1.19
 
 require (
-	github.com/apache/rocketmq-clients/golang v0.0.3
+	github.com/apache/rocketmq-clients/golang v0.0.4
 	github.com/gone-io/gone v0.0.7
 	github.com/stretchr/testify v1.8.0
 )
@@ -63,4 +63,4 @@ require (
 	xorm.io/xorm v1.3.2 // indirect
 )
 
-replace github.com/apache/rocketmq-clients/golang v0.0.3 => github.com/Degfy/rocketmq-clients/golang v0.0.3
+replace github.com/apache/rocketmq-clients/golang v0.0.4 => github.com/Degfy/rocketmq-clients/golang v0.0.4

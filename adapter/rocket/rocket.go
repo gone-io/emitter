@@ -10,7 +10,9 @@ import (
 	"github.com/gone-io/gone"
 	"github.com/gone-io/gone/goner/logrus"
 	"github.com/gone-io/gone/goner/tracer"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +42,13 @@ type rocket struct {
 	awaitDuration     time.Duration `gone:"config,domain.event.rocketMq.await,default=5s"`
 	maxMessageNum     int           `gone:"config,domain.event.rocketMq.connect.onceRead,default=8"`
 	invisibleDuration time.Duration `gone:"config,domain.event.rocketMq.connect.invisible,default=20s"`
+	consoleLog        bool          `gone:"config,domain.event.rocketMq.log.console,default=true"`
+	logLevel          string        `gone:"config,domain.event.rocketMq.log.level,default=error"`
+	logRoot           string        `gone:"config,domain.event.rocketMq.log.root,default=/var/logs/rocket"`
+	logFilename       string        `gone:"config,domain.event.rocketMq.log.filename,default=rocket.log"`
+	logFileMaxIndex   string        `gone:"config,domain.event.rocketMq.log.fileMaxIndex"`
+	logFileMaxSize    string        `gone:"config,domain.event.rocketMq.log.FileMaxSize"`
+	onlyConsume       bool          `gone:"config,domain.event.rocketMq.only-consume,default=false"`
 
 	_topics []string
 	once    sync.Once
@@ -83,17 +92,20 @@ func (r *rocket) Send(msg emitter.MQMsg) (msgIds []string, err error) {
 		err = gone.NewInnerError(emitter.HeadersMustWithEventType, "send(emitter.MQMsg) msg headers must with event type")
 		return
 	}
-	tag, ok := t.(string)
+	msgType, ok := t.(string)
 	if !ok {
 		err = gone.NewInnerError(emitter.HeadersMustWithEventType, "send(emitter.MQMsg) msg headers must with event type")
 		return
 	}
+
+	tag := r.getStructTypeHash(msgType)
 	r.Debugf("send-msg's tag:%s", tag)
 	message.SetTag(tag)
 
 	for _, topic := range r.getTopics() {
 		message.Topic = topic
-		sends, err := r.producer.Send(context.TODO(), &message)
+		var sends []*mq.SendReceipt
+		sends, err = r.producer.Send(context.TODO(), &message)
 		if err != nil {
 			return msgIds, gone.NewInnerError(emitter.SendError, err.Error())
 		}
@@ -136,8 +148,14 @@ func (r *rocket) startConsumer() (err error) {
 	if err != nil {
 		return
 	}
+
+	err = r.consumer.Start()
+	if err != nil {
+		return
+	}
+
 	go r.msgReadLoop()
-	return r.consumer.Start()
+	return
 }
 func (r *rocket) startProducer() (err error) {
 	r.producer, err = mq.NewProducer(&mq.Config{
@@ -155,29 +173,42 @@ func (r *rocket) startProducer() (err error) {
 }
 
 func (r *rocket) Start(gone.Cemetery) (err error) {
+	err = r.initLog()
+	if err != nil {
+		return
+	}
+
 	if r.hasConsumerEvent() {
 		err = r.startConsumer()
 		if err != nil {
 			return
 		}
+	} else {
+		r.Warnf("no consume event, consumer was not start")
 	}
-	if r.emitter.HasSender() {
+
+	if !r.onlyConsume {
 		err = r.startProducer()
 		if err != nil {
 			return
 		}
+	} else {
+		r.Warnf("no event sender, producer was not start")
 	}
 	return
 }
 func (r *rocket) Stop(gone.Cemetery) (err error) {
-	err = r.consumer.GracefulStop()
-	if err != nil {
-		r.Errorf("consumer.GracefulStop err:%v", err)
+	if r.hasConsumerEvent() {
+		err = r.consumer.GracefulStop()
+		if err != nil {
+			r.Errorf("consumer.GracefulStop err:%v", err)
+		}
 	}
-
-	err = r.producer.GracefulStop()
-	if err != nil {
-		r.Errorf("producer.GracefulStop err:%v", err)
+	if !r.onlyConsume {
+		err = r.producer.GracefulStop()
+		if err != nil {
+			r.Errorf("producer.GracefulStop err:%v", err)
+		}
 	}
 	return
 }
@@ -211,7 +242,11 @@ func (r *rocket) msgReadLoop() {
 		for true {
 			mvs, err := r.consumer.Receive(context.TODO(), int32(r.maxMessageNum), r.invisibleDuration)
 			if err != nil {
-				r.Errorf("consumer.Receive err:%v", err)
+				status, ok := err.(*mq.ErrRpcStatus)
+				if ok && status.Code == 40401 {
+					continue
+				}
+				r.Errorf("consumer.Receive err: %v", err)
 			}
 
 			for _, mv := range mvs {
@@ -257,4 +292,44 @@ func (r *rocket) getMsgTraceId(mv *mq.MessageView) string {
 		return ""
 	}
 	return properties[emitter.TagTrace]
+}
+
+func (r *rocket) initLog() (err error) {
+	err = os.Setenv(mq.ENABLE_CONSOLE_APPENDER, strconv.FormatBool(r.consoleLog))
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_LEVEL, r.logLevel)
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_ROOT, r.logRoot)
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_ROOT, r.logRoot)
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_FILENAME, r.logFilename)
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_MAXINDEX, r.logFileMaxIndex)
+	if err != nil {
+		return
+	}
+
+	err = os.Setenv(mq.CLIENT_LOG_FILESIZE, r.logFileMaxSize)
+	if err != nil {
+		return
+	}
+
+	mq.ResetLogger()
+	return
 }

@@ -27,13 +27,11 @@ type Consumer interface {
 }
 
 type Emitter interface {
-	gone.Goner
 	Sender
 
 	AfterRevive() gone.AfterReviveError
 
 	GetConsumeEventTypes() []string
-	HasSender() bool
 }
 
 type Headers map[string]interface{}
