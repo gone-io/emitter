@@ -242,10 +242,13 @@ func (r *rocket) msgReadLoop() {
 		for true {
 			mvs, err := r.consumer.Receive(context.TODO(), int32(r.maxMessageNum), r.invisibleDuration)
 			if err != nil {
-				status, ok := err.(*mq.ErrRpcStatus)
-				if ok && status.Code == 40401 {
-					continue
+				if status, ok := err.(*mq.ErrRpcStatus); ok {
+					if status.Code == 40401 {
+						continue
+					}
+					r.Errorf("consumer.Receive err: %s", status.GetMessage())
 				}
+
 				r.Errorf("consumer.Receive err: %v", err)
 			}
 
