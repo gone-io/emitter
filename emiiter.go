@@ -45,10 +45,11 @@ type emitter struct {
 func (r *emitter) Send(event DomainEvent, duration ...time.Duration) error {
 	t := reflect.TypeOf(event)
 	r.checkEventType(t)
+	eventType := GetStructTypeString(t)
 
 	headers := make(Headers)
 	headers[TagTrace] = r.tracer.GetTraceId()
-	headers[TagEventType] = GetStructTypeString(reflect.TypeOf(event))
+	headers[TagEventType] = eventType
 	if len(duration) > 0 {
 		headers[TagDelay] = duration[0]
 	}
@@ -70,7 +71,7 @@ func (r *emitter) Send(event DomainEvent, duration ...time.Duration) error {
 	ids, err := r.mq.Send(NewMQMsg(msg, headers))
 	id := strings.Join(ids, ",")
 
-	r.Infof("send-message(Id=%s, type=%s) %s", id, t, msg)
+	r.Infof("send-message(Id=%s, type=%s) %s", id, eventType, msg)
 	return err
 }
 
@@ -111,7 +112,8 @@ func (r *emitter) routeMsg(msg MQMsg) (err error) {
 		return
 	}
 
-	event, err := handle.decode(msg.GetBody())
+	var event DomainEvent
+	event, err = handle.decode(msg.GetBody())
 	if err != nil {
 		err = gone.NewInnerError(EventDecodeError, "event decode error")
 		return
@@ -208,19 +210,22 @@ func (r *emitter) proxyDecoder(pt reflect.Type) Decode {
 			return value, decoder.Decode(bytes)
 		}
 	} else {
-		return func(bytes []byte) (DomainEvent, Error) {
-			value := reflect.New(pt)
-			ptr := value.Interface()
-			err := json.Unmarshal(bytes, ptr)
-			return ptr, err
+		if reflect.Pointer == pt.Kind() {
+			pt = pt.Elem()
 		}
+		return func(bytes []byte) (DomainEvent, Error) {
+			ptr := reflect.New(pt)
+			err := json.Unmarshal(bytes, ptr.Interface())
+			return ptr.Interface(), err
+		}
+
 	}
 }
 
 func (r *emitter) proxyFn(fv reflect.Value, pt reflect.Type) DomainEventHandler {
-	if reflect.Struct == pt.Kind() {
+	if reflect.Pointer == pt.Kind() {
 		return func(event DomainEvent) error {
-			ret := fv.Call([]reflect.Value{reflect.ValueOf(event).Elem()})
+			ret := fv.Call([]reflect.Value{reflect.ValueOf(event)})
 			err := ret[0].Interface()
 			if err != nil {
 				return err.(error)
@@ -229,7 +234,7 @@ func (r *emitter) proxyFn(fv reflect.Value, pt reflect.Type) DomainEventHandler 
 		}
 	}
 	return func(event DomainEvent) error {
-		ret := fv.Call([]reflect.Value{reflect.ValueOf(event)})
+		ret := fv.Call([]reflect.Value{reflect.ValueOf(event).Elem()})
 		err := ret[0].Interface()
 		if err != nil {
 			return err.(error)

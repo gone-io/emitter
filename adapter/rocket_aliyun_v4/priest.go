@@ -11,7 +11,7 @@ func Priest(cemetery gone.Cemetery) error {
 	_ = emitter.Priest(cemetery)
 
 	if nil == cemetery.GetTomById(emitter.IdGoneEmitterMq) {
-		cemetery.Bury(NewRocket())
+		cemetery.Bury(NewAliyunV4())
 	}
 	return nil
 }
