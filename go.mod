@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
-	github.com/apache/rocketmq-clients/golang v0.0.4
+	github.com/apache/rocketmq-clients/golang v0.0.0-20221101030717-105640858ae1
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
 	github.com/gone-io/gone v0.0.7
 	github.com/stretchr/testify v1.8.0
@@ -71,4 +71,4 @@ require (
 	xorm.io/xorm v1.3.2 // indirect
 )
 
-replace github.com/apache/rocketmq-clients/golang v0.0.4 => github.com/Degfy/rocketmq-clients/golang v0.0.4
+replace github.com/apache/rocketmq-clients/golang => github.com/Degfy/rocketmq-clients/golang v0.0.4
