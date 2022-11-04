@@ -140,7 +140,17 @@ func (r *emitter) proxyDomainEventHandler(msg DomainEvent, fn DomainEventHandler
 
 func (r *emitter) on(handler interface{}) {
 	fv, pt := r.checkHandler(handler)
+
+	r.Log(pt, handler)
+
 	r.addToMap(fv, pt)
+}
+
+func (r *emitter) Log(pt reflect.Type, handler interface{}) {
+	if reflect.Pointer == pt.Kind() {
+		pt = pt.Elem()
+	}
+	r.Infof("On %s/%s Do %s", pt.PkgPath(), pt.Name(), gone.FuncName(handler))
 }
 
 var errPtr *error
