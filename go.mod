@@ -6,7 +6,7 @@ require (
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
 	github.com/apache/rocketmq-clients/golang v0.0.0-20221101030717-105640858ae1
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
-	github.com/gone-io/gone v0.0.16
+	github.com/gone-io/gone v0.0.20
 	github.com/stretchr/testify v1.8.0
 )
 
