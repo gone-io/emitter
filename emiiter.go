@@ -150,7 +150,7 @@ func (r *emitter) Log(pt reflect.Type, handler interface{}) {
 	if reflect.Pointer == pt.Kind() {
 		pt = pt.Elem()
 	}
-	r.Infof("On %s/%s Do %s", pt.PkgPath(), pt.Name(), gone.FuncName(handler))
+	r.Infof("On %s/%s Do %s", pt.PkgPath(), pt.Name(), gone.GetFuncName(handler))
 }
 
 var errPtr *error
