@@ -115,8 +115,8 @@ func (r *emitter) routeMsg(msg MQMsg) (err error) {
 	var event DomainEvent
 	event, err = handle.decode(msg.GetBody())
 	if err != nil {
-		err = gone.NewInnerError(EventDecodeError, "event decode error")
-		return
+		r.Warnf("msg decode error: %v, skip!\n", err)
+		return nil
 	}
 
 	handleFns := make([]AllCompleteFunc, 0)
