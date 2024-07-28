@@ -237,7 +237,7 @@ func (r *rocket) getSubscriptionExpressions() map[string]*mq.FilterExpression {
 
 func (r *rocket) msgReadLoop() {
 	r.tracer.RecoverSetTraceId("", func() {
-		for true {
+		for {
 			mvs, err := r.consumer.Receive(context.TODO(), int32(r.maxMessageNum), r.invisibleDuration)
 			if err != nil {
 				if status, ok := err.(*mq.ErrRpcStatus); ok {
@@ -246,7 +246,10 @@ func (r *rocket) msgReadLoop() {
 					}
 					r.Errorf("consumer.Receive err: %s", status.GetMessage())
 				}
-
+				if err.Error() == "simple consumer is not running" {
+					time.Sleep(time.Second)
+					continue
+				}
 				r.Errorf("consumer.Receive err: %v", err)
 			}
 
