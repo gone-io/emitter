@@ -4,11 +4,10 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	mq "github.com/apache/rocketmq-clients/golang"
-	"github.com/apache/rocketmq-clients/golang/credentials"
+	mq "github.com/apache/rocketmq-clients/golang/v5"
+	"github.com/apache/rocketmq-clients/golang/v5/credentials"
 	"github.com/gone-io/emitter"
 	"github.com/gone-io/gone"
-	"github.com/gone-io/gone/goner/logrus"
 	"github.com/gone-io/gone/goner/tracer"
 	"os"
 	"sort"
@@ -24,20 +23,19 @@ func NewRocket() (gone.Angel, gone.GonerId) {
 
 type rocket struct {
 	gone.Flag
-	logrus.Logger `gone:"gone-logger"`
-	tracer        tracer.Tracer   `gone:"gone-tracer"`
-	emitter       emitter.Emitter `gone:"gone-emitter"`
-	consumer      mq.SimpleConsumer
-	producer      mq.Producer
-	subscriber    emitter.Subscriber
+	gone.Logger `gone:"gone-logger"`
+	tracer      tracer.Tracer   `gone:"gone-tracer"`
+	emitter     emitter.Emitter `gone:"gone-emitter"`
+	consumer    mq.SimpleConsumer
+	producer    mq.Producer
+	subscriber  emitter.Subscriber
 
-	endPoint   string `gone:"config,domain.event.rocketMq.endpoint"`
-	instanceId string `gone:"config,domain.event.rocketMq.instanceId"`
-	accessKey  string `gone:"config,domain.event.rocketMq.accessKey"`
-	secretKey  string `gone:"config,domain.event.rocketMq.secretKey"`
-	topics     string `gone:"config,domain.event.rocketMq.topic"`
-	groupId    string `gone:"config,domain.event.rocketMq.groupId"`
-	debug      string `gone:"config,domain.event.rocketMq.debug"`
+	endPoint  string `gone:"config,domain.event.rocketMq.endpoint"`
+	accessKey string `gone:"config,domain.event.rocketMq.accessKey"`
+	secretKey string `gone:"config,domain.event.rocketMq.secretKey"`
+	topics    string `gone:"config,domain.event.rocketMq.topic"`
+	groupId   string `gone:"config,domain.event.rocketMq.groupId"`
+	debug     string `gone:"config,domain.event.rocketMq.debug"`
 
 	awaitDuration     time.Duration `gone:"config,domain.event.rocketMq.await,default=5s"`
 	maxMessageNum     int           `gone:"config,domain.event.rocketMq.connect.onceRead,default=8"`
@@ -89,12 +87,12 @@ func (r *rocket) Send(msg emitter.MQMsg) (msgIds []string, err error) {
 
 	t, ok := headers[emitter.TagEventType]
 	if !ok {
-		err = gone.NewInnerError(emitter.HeadersMustWithEventType, "send(emitter.MQMsg) msg headers must with event type")
+		err = gone.NewInnerError("send(emitter.MQMsg) msg headers must with event type", emitter.HeadersMustWithEventType)
 		return
 	}
 	msgType, ok := t.(string)
 	if !ok {
-		err = gone.NewInnerError(emitter.HeadersMustWithEventType, "send(emitter.MQMsg) msg headers must with event type")
+		err = gone.NewInnerError("send(emitter.MQMsg) msg headers must with event type", emitter.HeadersMustWithEventType)
 		return
 	}
 
@@ -107,10 +105,10 @@ func (r *rocket) Send(msg emitter.MQMsg) (msgIds []string, err error) {
 		var sends []*mq.SendReceipt
 		sends, err = r.producer.Send(context.TODO(), &message)
 		if err != nil {
-			return msgIds, gone.NewInnerError(emitter.SendError, err.Error())
+			return msgIds, gone.NewInnerError(err.Error(), emitter.SendError)
 		}
 		if len(sends) < 1 {
-			err = gone.NewInnerError(emitter.SendRstError, "r.producer.Send(context.TODO(), &message) rst len is 0")
+			err = gone.NewInnerError("r.producer.Send(context.TODO(), &message) rst len is 0", emitter.SendRstError)
 			return
 		}
 		msgIds = append(msgIds, sends[0].MessageID)
@@ -134,12 +132,12 @@ func (r *rocket) Consumer(s emitter.Subscriber) {
 
 func (r *rocket) startConsumer() (err error) {
 	r.consumer, err = mq.NewSimpleConsumer(&mq.Config{
-		Endpoint: r.endPoint,
+		Endpoint:      r.endPoint,
+		ConsumerGroup: r.groupId,
 		Credentials: &credentials.SessionCredentials{
 			AccessKey:    r.accessKey,
 			AccessSecret: r.secretKey,
 		},
-		ConsumerGroup: r.groupId,
 	},
 		mq.WithAwaitDuration(r.awaitDuration),
 		mq.WithSubscriptionExpressions(r.getSubscriptionExpressions()),

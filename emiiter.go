@@ -96,19 +96,19 @@ func (r *emitter) routeMsg(msg MQMsg) (err error) {
 
 	t, ok := headers[TagEventType]
 	if !ok {
-		err = gone.NewInnerError(MsgHeaderHasNotType, "msg header do not has type")
+		err = gone.NewInnerError("msg header do not has type", MsgHeaderHasNotType)
 		return
 	}
 
 	msgType, ok := t.(string)
 	if !ok {
-		err = gone.NewInnerError(MsgTypeIsNotAString, "msg type is not a string")
+		err = gone.NewInnerError("msg type is not a string", MsgTypeIsNotAString)
 		return
 	}
 
 	handle, ok := r.eventHandlerMap[msgType]
 	if !ok {
-		err = gone.NewInnerError(NotConsumeTheEvent, "do not consume the event")
+		err = gone.NewInnerError("do not consume the event", NotConsumeTheEvent)
 		return
 	}
 

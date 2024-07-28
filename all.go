@@ -42,7 +42,7 @@ func (a *all) AllComplete(fnList ...AllCompleteFunc) ([]interface{}, error) {
 			a.tracer.Go(func() {
 				defer func() {
 					if e := recover(); e != nil {
-						a.Errorf("handles panic: %v, %s", e, gone.PanicTrace(2))
+						a.Errorf("handles panic: %v, %s", e, gone.PanicTrace(2, 1))
 						err, ok := e.(error)
 						if !ok {
 							err = errors.New(fmt.Sprintf("%v", e))
